@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Chart, registerables } from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 
 Chart.register(...registerables);
 Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";

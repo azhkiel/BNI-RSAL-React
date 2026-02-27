@@ -9,6 +9,7 @@ const makeOptions = (base) => ({
 });
 
 const CHART_OPTIONS = {
+  
   monthly: makeOptions({
     plugins: { legend: { display: false } },
     scales: {
@@ -20,7 +21,29 @@ const CHART_OPTIONS = {
     cutout: "60%",
     plugins: {
       legend: { position: "bottom" },
-      tooltip: { callbacks: { label: (ctx) => " " + formatIDR(ctx.raw) } },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+            return ` ${ctx.label}: ${pct}% (${formatIDR(ctx.raw)})`;
+          },
+        },
+      },
+      datalabels: {
+        color: "white",
+        font: { weight: "bold", size: 11 },
+        formatter: (value, ctx) => {
+          const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+          const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+          return pct + "%";
+        },
+        // Sembunyikan label jika slice terlalu kecil (< 5%)
+        display: (ctx) => {
+          const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+          return total > 0 ? (ctx.dataset.data[ctx.dataIndex] / total) > 0.05 : false;
+        },
+      },
     },
   }),
   horizontal: makeOptions({
@@ -29,6 +52,13 @@ const CHART_OPTIONS = {
     scales: {
       x: { ticks: { callback: (v) => formatIDR(v) }, grid: { color: "rgba(0,0,0,0.05)" } },
       y: { grid: { display: false } },
+    },
+  }),
+    fee: makeOptions({
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { ticks: { callback: (v) => formatIDR(v) }, grid: { color: "rgba(0,0,0,0.05)" } },
+      x: { grid: { display: false } },
     },
   }),
 };
@@ -133,16 +163,18 @@ export default function Dashboard({ data, loading }) {
   const basRef       = useRef(null);
   const lsrRef       = useRef(null);
   const dashboardRef = useRef(null);
+  const feeRef = useRef(null); // TAMBAH INI
   const [exporting, setExporting] = useState(false);
 
   const chartData = !loading && data ? (() => {
     const monthly = groupSum(data, "Periode", "Basic Premium Regular");
     const product = groupSum(data, "Product", "Basic Premium Regular");
+    const fee = groupSum(data, "Periode", "Fee Based"); 
     const bas = Object.entries(groupSum(data, "BAS Name", "Basic Premium Regular"))
       .sort((a, b) => b[1] - a[1]).slice(0, 5);
     const lsr = Object.entries(groupSum(data, "LSR Name", "Basic Premium Regular"))
       .sort((a, b) => b[1] - a[1]).slice(0, 5);
-    return { monthly, product, bas, lsr };
+    return { monthly, product, fee,bas, lsr };
   })() : null;
 
   useChart(monthlyRef, "bar", chartData && {
@@ -164,6 +196,16 @@ export default function Dashboard({ data, loading }) {
     labels: chartData.lsr.map((b) => b[0]),
     datasets: [{ label: "Premium", data: chartData.lsr.map((b) => b[1]), backgroundColor: "#00A99D", borderRadius: 6, borderSkipped: false }],
   }, CHART_OPTIONS.horizontal);
+  useChart(feeRef, "bar", chartData && {
+    labels: Object.keys(chartData.fee),
+    datasets: [{
+      label: "Fee Based",
+      data: Object.values(chartData.fee),
+      backgroundColor: "#00A99D",
+      borderRadius: 6,
+      borderSkipped: false,
+    }],
+  }, CHART_OPTIONS.fee);
 
   const totalPremium = data ? data.reduce((s, r) => s + Number(r["Basic Premium Regular"] || 0), 0) : 0;
   const totalFee     = data ? data.reduce((s, r) => s + Number(r["Fee Based"] || 0), 0) : 0;
@@ -280,17 +322,24 @@ export default function Dashboard({ data, loading }) {
           />
         </div>
 
-        {/* Charts Row 1 */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
-          <ChartCard title="Premium per Bulan" subtitle="Tren premi bulanan tahun 2025" badge="2025">
-            <canvas ref={monthlyRef} height="140" />
-          </ChartCard>
-          <ChartCard title="Komposisi Produk" subtitle="Distribusi per jenis produk" badge="Produk">
-            <div style={{ maxWidth: 260, margin: "0 auto" }}>
-              <canvas ref={productRef} />
-            </div>
-          </ChartCard>
-        </div>
+{/* Charts Row 1 — tambah fee chart, jadikan 3 kolom */}
+<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
+  <ChartCard title="Premium per Bulan" subtitle="Tren premi bulanan tahun 2025" badge="2025">
+    <canvas ref={monthlyRef} height="140" />
+  </ChartCard>
+  <ChartCard title="Komposisi Produk" subtitle="Distribusi per jenis produk" badge="Produk">
+    <div style={{ maxWidth: 260, margin: "0 auto" }}>
+      <canvas ref={productRef} />
+    </div>
+  </ChartCard>
+</div>
+
+{/* TAMBAH BARIS INI — Fee Based Chart */}
+<div style={{ marginBottom: 20 }}>
+  <ChartCard title="Fee Based per Bulan" subtitle="Tren fee based bulanan tahun 2025" badge="Fee">
+    <canvas ref={feeRef} height="100" />
+  </ChartCard>
+</div>
 
         {/* Charts Row 2 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20, marginBottom: 8 }}>
