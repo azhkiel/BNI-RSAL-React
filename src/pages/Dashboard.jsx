@@ -346,7 +346,7 @@ export default function Dashboard({ data, loading }) {
           <ChartCard title="Top 5 BAS" subtitle="BAS dengan premi tertinggi" badge="Ranking">
             <canvas ref={basRef} height="180" />
           </ChartCard>
-          <ChartCard title="Top 5 LSR" subtitle="LSR dengan premi tertinggi" badge="Ranking">
+          <ChartCard title="Top 5 Kontribusi LG" subtitle="LSR dengan premi tertinggi" badge="Ranking">
             <canvas ref={lsrRef} height="180" />
           </ChartCard>
         </div>

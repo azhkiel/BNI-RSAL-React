@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createData, updateData, deleteData } from "../api";
 import { formatIDR } from "../utils";
 
@@ -6,6 +6,8 @@ const EMPTY_FORM = {
   Periode: "", PolicyNumber: "", freq: "", Product: "",
   Premium: "", Fee: "", BAS: "", NPPBAS: "", LSR: "", NPPBSR: "", LSRUnit: "",
 };
+
+const ITEMS_PER_PAGE = 20;
 
 function Field({ label, children }) {
   return (
@@ -16,14 +18,102 @@ function Field({ label, children }) {
   );
 }
 
-export default function Crud({ data, loading, onRefresh }) {
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [editRow, setEdit]  = useState(null);
-  const [saving, setSaving] = useState(false);
+function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
+  if (totalPages <= 1) return null;
 
-  function setF(key, val) {
-    setForm((f) => ({ ...f, [key]: val }));
-  }
+  const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const end   = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  // Build page numbers with ellipsis
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+    .reduce((acc, p, idx, arr) => {
+      if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+      acc.push(p);
+      return acc;
+    }, []);
+
+  const btnBase = {
+    width: 34, height: 34, borderRadius: 8,
+    border: "1.5px solid #e2e8f0",
+    cursor: "pointer", fontWeight: 700, fontSize: 13,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    transition: "all 0.15s",
+  };
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "14px 24px", borderTop: "1px solid #f1f5f9", flexWrap: "wrap", gap: 8,
+    }}>
+      <div style={{ fontSize: 13, color: "#94a3b8" }}>
+        Menampilkan <strong style={{ color: "#334155" }}>{start}–{end}</strong> dari{" "}
+        <strong style={{ color: "#334155" }}>{totalItems}</strong> data
+      </div>
+
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        {/* Prev */}
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          style={{
+            ...btnBase,
+            background: currentPage === 1 ? "#f8fafc" : "white",
+            color: currentPage === 1 ? "#cbd5e1" : "#334155",
+            cursor: currentPage === 1 ? "not-allowed" : "pointer",
+          }}
+        >‹</button>
+
+        {/* Page numbers */}
+        {pages.map((p, idx) =>
+          p === "..." ? (
+            <span key={"dot-" + idx} style={{ color: "#94a3b8", padding: "0 2px", fontSize: 13 }}>…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p)}
+              style={{
+                ...btnBase,
+                border: "1.5px solid " + (p === currentPage ? "#003F87" : "#e2e8f0"),
+                background: p === currentPage ? "#003F87" : "white",
+                color: p === currentPage ? "white" : "#334155",
+              }}
+            >{p}</button>
+          )
+        )}
+
+        {/* Next */}
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          style={{
+            ...btnBase,
+            background: currentPage === totalPages ? "#f8fafc" : "white",
+            color: currentPage === totalPages ? "#cbd5e1" : "#334155",
+            cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+          }}
+        >›</button>
+      </div>
+    </div>
+  );
+}
+
+export default function Crud({ data, loading, onRefresh }) {
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [editRow, setEdit]      = useState(null);
+  const [saving, setSaving]     = useState(false);
+  const [currentPage, setPage]  = useState(1);
+
+  // Reset to page 1 whenever data changes
+  useEffect(() => { setPage(1); }, [data]);
+
+  const totalPages   = data ? Math.ceil(data.length / ITEMS_PER_PAGE) : 0;
+  const paginatedData = data
+    ? data.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    : [];
+
+  function setF(key, val) { setForm((f) => ({ ...f, [key]: val })); }
 
   function buildPayload(source) {
     return {
@@ -210,7 +300,7 @@ export default function Crud({ data, loading, onRefresh }) {
                   </td>
                 </tr>
               ) : (
-                data.map((row) => (
+                paginatedData.map((row) => (
                   <tr key={row.id}>
                     <td>{row["Periode"]}</td>
                     <td>{row["Product"]}</td>
@@ -229,6 +319,13 @@ export default function Crud({ data, loading, onRefresh }) {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={data ? data.length : 0}
+          onPageChange={setPage}
+        />
       </div>
 
       <div style={{ textAlign: "center", fontSize: 12, color: "#94a3b8", paddingTop: 24, paddingBottom: 8 }}>

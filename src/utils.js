@@ -45,8 +45,9 @@ export async function exportToPDF(element, filename = "Dashboard_Produksi") {
     import("jspdf"),
   ]);
 
-  const PAGE_W = 210;
-  const PAGE_H = 297;
+  // Landscape A4
+  const PAGE_W = 297;
+  const PAGE_H = 210;
   const MARGIN = 10;
 
   const canvas = await html2canvas(element, {
@@ -54,9 +55,7 @@ export async function exportToPDF(element, filename = "Dashboard_Produksi") {
     useCORS: true,
     logging: false,
     backgroundColor: "#F0F4FA",
-    // Fix 1: Copy canvas pixel data into the cloned DOM before capture
     onclone: (clonedDoc, clonedEl) => {
-      // Find all canvas elements in the original and copy their image to the clone
       const originalCanvases = element.querySelectorAll("canvas");
       const clonedCanvases   = clonedEl.querySelectorAll("canvas");
       originalCanvases.forEach((orig, i) => {
@@ -64,64 +63,54 @@ export async function exportToPDF(element, filename = "Dashboard_Produksi") {
         if (!clone) return;
         clone.width  = orig.width;
         clone.height = orig.height;
-        const ctx = clone.getContext("2d");
-        ctx.drawImage(orig, 0, 0);
+        clone.getContext("2d").drawImage(orig, 0, 0);
       });
-
-      // Fix 2: Remove overflow restrictions so nothing gets clipped
       clonedEl.querySelectorAll("*").forEach((el) => {
-        const style = el.style;
-        style.overflow   = "visible";
-        style.overflowX  = "visible";
-        style.overflowY  = "visible";
+        el.style.overflow  = "visible";
+        el.style.overflowX = "visible";
+        el.style.overflowY = "visible";
       });
-
-      // Fix 3: Force kpi-grid to be a normal grid (not horizontal scroll)
       clonedEl.querySelectorAll(".kpi-grid").forEach((el) => {
-        el.style.display               = "grid";
-        el.style.gridTemplateColumns   = "repeat(3, 1fr)";
-        el.style.overflowX             = "visible";
+        el.style.display             = "grid";
+        el.style.gridTemplateColumns = "repeat(3, 1fr)";
+        el.style.overflowX           = "visible";
       });
     },
   });
 
-  const imgW  = PAGE_W - MARGIN * 2;
-  const ratio = canvas.width / canvas.height;
-  const imgH  = imgW / ratio;
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const contentW  = PAGE_W - MARGIN * 2;   // 277mm usable width
+  const contentH  = PAGE_H - MARGIN * 2;   // 190mm usable height per page
+  const pxPerMm   = canvas.width / contentW;
+  const sliceH_px = contentH * pxPerMm;
 
-  if (imgH <= PAGE_H - MARGIN * 2) {
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", MARGIN, MARGIN, imgW, imgH);
-  } else {
-    const pageContentH = PAGE_H - MARGIN * 2;
-    const pxPerMm      = canvas.width / imgW;
-    const sliceH_px    = pageContentH * pxPerMm;
-    let offsetY_px     = 0;
-    let pageNum        = 0;
+  let offsetY_px = 0;
+  let pageNum    = 0;
 
-    while (offsetY_px < canvas.height) {
-      const remaining = canvas.height - offsetY_px;
-      const thisSlice = Math.min(sliceH_px, remaining);
+  while (offsetY_px < canvas.height) {
+    const remaining = canvas.height - offsetY_px;
+    const thisSlice = Math.min(sliceH_px, remaining);
 
-      const slice = document.createElement("canvas");
-      slice.width  = canvas.width;
-      slice.height = thisSlice;
-      slice.getContext("2d").drawImage(
-        canvas,
-        0, offsetY_px, canvas.width, thisSlice,
-        0, 0,          canvas.width, thisSlice
-      );
+    const slice = document.createElement("canvas");
+    slice.width  = canvas.width;
+    slice.height = thisSlice;
+    slice.getContext("2d").drawImage(
+      canvas,
+      0, offsetY_px, canvas.width, thisSlice,
+      0, 0,          canvas.width, thisSlice
+    );
 
-      const sliceImgH = thisSlice / pxPerMm;
-      if (pageNum > 0) pdf.addPage();
-      pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", MARGIN, MARGIN, imgW, sliceImgH);
+    const sliceImgH = thisSlice / pxPerMm;
 
-      offsetY_px += sliceH_px;
-      pageNum++;
-    }
+    if (pageNum > 0) pdf.addPage();
+    pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", MARGIN, MARGIN, contentW, sliceImgH);
+
+    offsetY_px += sliceH_px;
+    pageNum++;
   }
 
+  // Footer tiap halaman
   const totalPages = pdf.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
