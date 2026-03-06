@@ -9,7 +9,6 @@ const makeOptions = (base) => ({
 });
 
 const CHART_OPTIONS = {
-  
   monthly: makeOptions({
     plugins: { legend: { display: false } },
     scales: {
@@ -38,7 +37,6 @@ const CHART_OPTIONS = {
           const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
           return pct + "%";
         },
-        // Sembunyikan label jika slice terlalu kecil (< 5%)
         display: (ctx) => {
           const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
           return total > 0 ? (ctx.dataset.data[ctx.dataIndex] / total) > 0.05 : false;
@@ -54,7 +52,7 @@ const CHART_OPTIONS = {
       y: { grid: { display: false } },
     },
   }),
-    fee: makeOptions({
+  fee: makeOptions({
     plugins: { legend: { display: false } },
     scales: {
       y: { ticks: { callback: (v) => formatIDR(v) }, grid: { color: "rgba(0,0,0,0.05)" } },
@@ -63,21 +61,19 @@ const CHART_OPTIONS = {
   }),
 };
 
-// ── SVG Icons (html2canvas-safe, no emoji) ──
+// ── SVG Icons ──
 const IconMoney = ({ color }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/>
     <path d="M12 6v2m0 8v2M9.5 9.5A2.5 2.5 0 0 1 12 8a2.5 2.5 0 0 1 0 5 2.5 2.5 0 0 0 0 5 2.5 2.5 0 0 0 2.5-1.5"/>
   </svg>
 );
-
 const IconTrend = ({ color }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
     <polyline points="17 6 23 6 23 12"/>
   </svg>
 );
-
 const IconClipboard = ({ color }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
@@ -86,7 +82,6 @@ const IconClipboard = ({ color }) => (
     <line x1="9" y1="16" x2="13" y2="16"/>
   </svg>
 );
-
 const IconBank = ({ color = "white" }) => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <line x1="3" y1="22" x2="21" y2="22"/>
@@ -97,7 +92,6 @@ const IconBank = ({ color = "white" }) => (
     <polygon points="12 2 20 7 4 7"/>
   </svg>
 );
-
 const IconDownload = ({ color = "white" }) => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -105,7 +99,6 @@ const IconDownload = ({ color = "white" }) => (
     <line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 );
-
 const IconArrowUp = ({ color = "#22c55e" }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="19" x2="12" y2="5"/>
@@ -163,18 +156,18 @@ export default function Dashboard({ data, loading }) {
   const basRef       = useRef(null);
   const lsrRef       = useRef(null);
   const dashboardRef = useRef(null);
-  const feeRef = useRef(null); // TAMBAH INI
+  const feeRef       = useRef(null);
   const [exporting, setExporting] = useState(false);
 
   const chartData = !loading && data ? (() => {
     const monthly = groupSum(data, "Periode", "Basic Premium Regular");
     const product = groupSum(data, "Product", "Basic Premium Regular");
-    const fee = groupSum(data, "Periode", "Fee Based"); 
-    const bas = Object.entries(groupSum(data, "BAS Name", "Basic Premium Regular"))
+    const fee     = groupSum(data, "Periode", "Fee Based");
+    const bas     = Object.entries(groupSum(data, "BAS Name", "Basic Premium Regular"))
       .sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const lsr = Object.entries(groupSum(data, "LSR Name", "Basic Premium Regular"))
+    const lsr     = Object.entries(groupSum(data, "LSR Name", "Basic Premium Regular"))
       .sort((a, b) => b[1] - a[1]).slice(0, 5);
-    return { monthly, product, fee,bas, lsr };
+    return { monthly, product, fee, bas, lsr };
   })() : null;
 
   useChart(monthlyRef, "bar", chartData && {
@@ -196,6 +189,7 @@ export default function Dashboard({ data, loading }) {
     labels: chartData.lsr.map((b) => b[0]),
     datasets: [{ label: "Premium", data: chartData.lsr.map((b) => b[1]), backgroundColor: "#00A99D", borderRadius: 6, borderSkipped: false }],
   }, CHART_OPTIONS.horizontal);
+
   useChart(feeRef, "bar", chartData && {
     labels: Object.keys(chartData.fee),
     datasets: [{
@@ -215,12 +209,20 @@ export default function Dashboard({ data, loading }) {
     day: "numeric", month: "long", year: "numeric",
   });
 
+  // ── NEW: export PDF menggunakan jsPDF programatik (bukan screenshot) ──
   async function handleExportPDF() {
-    if (!dashboardRef.current || loading) return;
+    if (!chartData || loading) return;
     setExporting(true);
     try {
-      await new Promise((r) => setTimeout(r, 5000));
-      await exportToPDF(dashboardRef.current, "Dashboard_Produksi_BNI_Life");
+      await exportToPDF(
+        null,                          // element tidak dipakai lagi
+        "Dashboard_Produksi_BNI_Life",
+        chartData,                     // { monthly, product, fee, bas, lsr }
+        { totalPremium, totalFee, totalPolicy },
+        dateStr,
+        BNI_COLORS,
+        formatIDR
+      );
     } finally {
       setExporting(false);
     }
@@ -253,10 +255,10 @@ export default function Dashboard({ data, loading }) {
         </button>
       </div>
 
-      {/* ── PDF capture area ── */}
+      {/* Dashboard UI (tidak dipakai untuk PDF lagi) */}
       <div ref={dashboardRef} style={{ background: "#F0F4FA", padding: 4 }}>
 
-        {/* PDF Header — SVG icon, no emoji */}
+        {/* Header */}
         <div style={{
           background: "linear-gradient(135deg, #002960 0%, #003F87 100%)",
           borderRadius: 16, padding: "20px 24px", marginBottom: 20,
@@ -287,59 +289,29 @@ export default function Dashboard({ data, loading }) {
 
         {/* KPI Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 20 }}>
-          <KpiCard
-            label="Total Premium"
-            value={formatIDR(totalPremium)}
-            IconComponent={IconMoney}
-            iconColor="#F37021"
-            iconBg="rgba(243,112,33,0.1)"
-            cardClass="kpi-orange"
-            pct="12.4%"
-            delay="d1"
-            loading={loading}
-          />
-          <KpiCard
-            label="Total Fee Based"
-            value={formatIDR(totalFee)}
-            IconComponent={IconTrend}
-            iconColor="#003F87"
-            iconBg="rgba(0,63,135,0.1)"
-            cardClass="kpi-navy"
-            pct="8.1%"
-            delay="d2"
-            loading={loading}
-          />
-          <KpiCard
-            label="Jumlah Polis"
-            value={totalPolicy}
-            IconComponent={IconClipboard}
-            iconColor="#00A99D"
-            iconBg="rgba(0,169,157,0.1)"
-            cardClass="kpi-teal"
-            pct="5.7%"
-            delay="d3"
-            loading={loading}
-          />
+          <KpiCard label="Total Premium"   value={formatIDR(totalPremium)} IconComponent={IconMoney}     iconColor="#F37021" iconBg="rgba(243,112,33,0.1)"  cardClass="kpi-orange" pct="12.4%" delay="d1" loading={loading} />
+          <KpiCard label="Total Fee Based" value={formatIDR(totalFee)}     IconComponent={IconTrend}     iconColor="#003F87" iconBg="rgba(0,63,135,0.1)"    cardClass="kpi-navy"   pct="8.1%"  delay="d2" loading={loading} />
+          <KpiCard label="Jumlah Polis"    value={totalPolicy}              IconComponent={IconClipboard} iconColor="#00A99D" iconBg="rgba(0,169,157,0.1)"   cardClass="kpi-teal"   pct="5.7%"  delay="d3" loading={loading} />
         </div>
 
-{/* Charts Row 1 — tambah fee chart, jadikan 3 kolom */}
-<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
-  <ChartCard title="Premium per Bulan" subtitle="Tren premi bulanan tahun 2025" badge="2025">
-    <canvas ref={monthlyRef} height="140" />
-  </ChartCard>
-  <ChartCard title="Komposisi Produk" subtitle="Distribusi per jenis produk" badge="Produk">
-    <div style={{ maxWidth: 260, margin: "0 auto" }}>
-      <canvas ref={productRef} />
-    </div>
-  </ChartCard>
-</div>
+        {/* Charts Row 1 */}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
+          <ChartCard title="Premium per Bulan" subtitle="Tren premi bulanan tahun 2025" badge="2025">
+            <canvas ref={monthlyRef} height="140" />
+          </ChartCard>
+          <ChartCard title="Komposisi Produk" subtitle="Distribusi per jenis produk" badge="Produk">
+            <div style={{ maxWidth: 260, margin: "0 auto" }}>
+              <canvas ref={productRef} />
+            </div>
+          </ChartCard>
+        </div>
 
-{/* TAMBAH BARIS INI — Fee Based Chart */}
-<div style={{ marginBottom: 20 }}>
-  <ChartCard title="Fee Based per Bulan" subtitle="Tren fee based bulanan tahun 2025" badge="Fee">
-    <canvas ref={feeRef} height="100" />
-  </ChartCard>
-</div>
+        {/* Fee Based Chart */}
+        <div style={{ marginBottom: 20 }}>
+          <ChartCard title="Fee Based per Bulan" subtitle="Tren fee based bulanan tahun 2025" badge="Fee">
+            <canvas ref={feeRef} height="100" />
+          </ChartCard>
+        </div>
 
         {/* Charts Row 2 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20, marginBottom: 8 }}>
