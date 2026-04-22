@@ -8,10 +8,17 @@
 }
 
 :root {
-  --orange: #F37021;
-  --navy: #003F87;
-  --navy-dark: #002960;
-  --light: #EEF4FF;
+  --orange:     #F37021;
+  --navy:       #003F87;
+  --navy-dark:  #002960;
+  --light:      #EEF4FF;
+  --sidebar-w:  256px;
+  --topbar-h:   64px;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -21,7 +28,7 @@ body {
     radial-gradient(ellipse at -10% 80%, rgba(0,63,135,0.07) 0%, transparent 55%);
 }
 
-::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar       { width: 5px; }
 ::-webkit-scrollbar-thumb { background: rgba(0,63,135,0.2); border-radius: 10px; }
 
 /* ─── Animations ─── */
@@ -36,6 +43,10 @@ body {
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.95) translateY(10px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .fade-up { animation: fadeUp 0.4s ease forwards; }
@@ -57,91 +68,177 @@ body {
 
 .modal-animate { animation: modalIn 0.25s ease forwards; }
 
-/* ─── Layout ─── */
+/* ════════════════════════════════════════════
+   LAYOUT — THE KEY FIX
+   Use a proper sidebar + content flex layout.
+   Sidebar is fixed; main-wrapper uses margin-left
+   on desktop and collapses on mobile.
+   ════════════════════════════════════════════ */
+
+/* Root wrapper: full-height, no overflow-x */
 .page-bg {
   min-height: 100vh;
   display: flex;
+  flex-direction: row;
+  overflow-x: hidden;
+  position: relative;
 }
 
-.main-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin-left: 256px;
-}
-
-@media (max-width: 1023px) {
-  .main-wrapper { margin-left: 0 !important; }
-  .page-main { padding-bottom: 80px !important; }
-  .bottom-nav { display: flex !important; }
-  .hamburger { display: flex !important; }
-  .topbar-date { display: none !important; }
-}
-
-@media (max-width: 640px) {
-  .btn-text { display: none; }
-  .kpi-grid {
-    display: flex !important;
-    overflow-x: auto !important;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    grid-template-columns: unset !important;
-  }
-  .kpi-grid::-webkit-scrollbar { display: none; }
-  .kpi-card { min-width: 220px; scroll-snap-align: start; flex-shrink: 0; }
-}
-
-/* ─── Sidebar ─── */
+/* ── Sidebar ── */
 .sidebar {
   background: linear-gradient(180deg, var(--navy-dark) 0%, var(--navy) 100%);
   box-shadow: 4px 0 24px rgba(0,41,96,0.18);
-  width: 256px;
+  width: var(--sidebar-w);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
+
+  /* Fixed so it doesn't scroll with content */
   position: fixed;
   left: 0;
   top: 0;
   height: 100vh;
-  z-index: 20;
-  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  z-index: 40;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* Smooth slide in/out */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
+/* Overlay (mobile) */
 .sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 19;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 39;
   backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
+/* ── Main wrapper — sits to the right of the sidebar ── */
+/*
+  KEY FIX: margin-left equals sidebar width on desktop.
+  This prevents the sidebar from covering the content.
+  On mobile we set margin-left: 0 and hide the sidebar off-screen.
+*/
+.main-wrapper {
+  flex: 1 1 0%;
+  min-width: 0;                         /* prevents flex child overflow */
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--sidebar-w);        /* push content past fixed sidebar */
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Page content area ── */
+.page-main {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 24px 32px;
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+   ════════════════════════════════════════════ */
+
+/* Tablet (≤ 1023px): sidebar slides off-screen, hamburger appears */
 @media (max-width: 1023px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
-  .sidebar-overlay.active { display: block; }
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-overlay.active {
+    display: block;
+  }
+
+  /* Remove margin — sidebar is now off-canvas */
+  .main-wrapper {
+    margin-left: 0;
+  }
+
+  .page-main {
+    padding: 20px 20px 96px; /* extra bottom for bottom-nav */
+  }
+
+  .hamburger {
+    display: flex !important;
+  }
+
+  .topbar-date {
+    display: none !important;
+  }
+
+  .bottom-nav {
+    display: flex !important;
+  }
 }
 
+/* Mobile (≤ 640px) */
+@media (max-width: 640px) {
+  .page-main {
+    padding: 16px 16px 96px;
+  }
+
+  .btn-text {
+    display: none;
+  }
+
+  /* KPI cards: horizontal scroll on mobile */
+  .kpi-scroll-row {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 16px;
+    padding-bottom: 4px;
+    margin-bottom: 0;
+  }
+  .kpi-scroll-row::-webkit-scrollbar { display: none; }
+  .kpi-card {
+    min-width: 220px;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+
+  /* Charts stack */
+  .chart-row-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── Sidebar nav items ─── */
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.72);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
   text-decoration: none;
   border: none;
   width: 100%;
   text-align: left;
   background: transparent;
+  line-height: 1.4;
 }
-.nav-item:hover { background: rgba(255,255,255,0.12); }
+.nav-item:hover {
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.95);
+}
 .nav-item.active {
   background: var(--orange);
   color: white;
@@ -150,11 +247,11 @@ body {
 }
 
 .section-label {
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  font-size: 10px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.45);
-  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  font-weight: 700;
   padding: 0 12px;
   margin-bottom: 6px;
   margin-top: 18px;
@@ -174,14 +271,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
+  padding: 0 32px;
+  height: var(--topbar-h);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 30;
   gap: 12px;
+  flex-shrink: 0;
 }
-@media (max-width: 640px) { .topbar { padding: 16px; } }
 
+@media (max-width: 640px) {
+  .topbar { padding: 0 16px; }
+}
+
+/* Hamburger (hidden on desktop) */
 .hamburger {
   display: none;
   flex-direction: column;
@@ -195,13 +298,16 @@ body {
   cursor: pointer;
   gap: 5px;
   flex-shrink: 0;
+  transition: background 0.2s;
 }
+.hamburger:hover { background: #d8e6ff; }
 .hamburger span {
   display: block;
-  width: 20px;
+  width: 18px;
   height: 2px;
   background: var(--navy);
   border-radius: 2px;
+  transition: transform 0.2s;
 }
 
 /* ─── Cards ─── */
@@ -222,24 +328,19 @@ body {
   padding: 20px 24px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
-.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,63,135,0.13); }
-.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0,63,135,0.13);
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+}
 .kpi-orange::before { background: var(--orange); }
 .kpi-navy::before   { background: var(--navy); }
 .kpi-teal::before   { background: #00A99D; }
-
-.kpi-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-}
-.icon-orange { background: rgba(243,112,33,0.1); }
-.icon-navy   { background: rgba(0,63,135,0.1); }
-.icon-teal   { background: rgba(0,169,157,0.1); }
 
 .chart-card {
   background: white;
@@ -248,31 +349,37 @@ body {
   border: 1px solid rgba(0,63,135,0.06);
   padding: 24px;
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 0; /* prevents chart overflow in grid */
 }
-.chart-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,63,135,0.11); }
+.chart-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,63,135,0.11);
+}
 
 /* ─── Badge ─── */
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   background: var(--light);
   color: var(--navy);
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: 20px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ─── Form ─── */
 .form-label {
   display: block;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   color: #64748b;
   margin-bottom: 5px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 .form-input {
   width: 100%;
@@ -282,7 +389,7 @@ body {
   font-size: 14px;
   color: #1e293b;
   background: #f8fafc;
-  transition: all 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
   outline: none;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
@@ -300,13 +407,18 @@ select.form-input {
   cursor: pointer;
 }
 
+/* Form grid: 3 col → 2 col → 1 col */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 20px;
 }
-@media (max-width: 1023px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px)  { .form-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1023px) {
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
 
 /* ─── Buttons ─── */
 .btn-primary {
@@ -316,7 +428,7 @@ select.form-input {
   padding: 10px 22px;
   font-weight: 700;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 14px rgba(243,112,33,0.3);
   border: none;
   cursor: pointer;
@@ -325,8 +437,11 @@ select.form-input {
   gap: 8px;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(243,112,33,0.4); }
-.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(243,112,33,0.4);
+}
+.btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
 
 .btn-navy {
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
@@ -335,7 +450,7 @@ select.form-input {
   padding: 10px 18px;
   font-weight: 700;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 14px rgba(0,63,135,0.25);
   border: none;
   cursor: pointer;
@@ -353,7 +468,7 @@ select.form-input {
   padding: 10px 22px;
   font-weight: 600;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: background 0.2s;
   border: none;
   cursor: pointer;
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -373,10 +488,14 @@ select.form-input {
   align-items: center;
   gap: 8px;
   box-shadow: 0 4px 14px rgba(5,150,105,0.25);
-  transition: all 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
-.btn-emerald:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5,150,105,0.35); }
+.btn-emerald:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(5,150,105,0.35);
+}
+.btn-emerald:disabled { opacity: 0.65; cursor: not-allowed; }
 
 .btn-edit {
   background: rgba(0,63,135,0.08);
@@ -387,8 +506,11 @@ select.form-input {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s;
   font-family: 'Plus Jakarta Sans', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .btn-edit:hover { background: rgba(0,63,135,0.15); }
 
@@ -401,8 +523,11 @@ select.form-input {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s;
   font-family: 'Plus Jakarta Sans', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .btn-delete:hover { background: rgba(239,68,68,0.15); }
 
@@ -419,10 +544,18 @@ select.form-input {
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
-.data-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
+.data-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+}
 .data-table tbody tr:hover { background: #f8fafc; }
 .data-table tbody tr:last-child { border-bottom: none; }
-.data-table td { padding: 13px 16px; font-size: 13.5px; color: #334155; white-space: nowrap; }
+.data-table td {
+  padding: 13px 16px;
+  font-size: 13.5px;
+  color: #334155;
+  white-space: nowrap;
+}
 
 /* ─── Modal ─── */
 .modal-overlay {
@@ -430,6 +563,7 @@ select.form-input {
   inset: 0;
   background: rgba(0,0,0,0.4);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 50;
   display: flex;
   align-items: center;
@@ -467,7 +601,7 @@ select.form-input {
   background: white;
   border-top: 1px solid rgba(0,63,135,0.1);
   box-shadow: 0 -4px 20px rgba(0,63,135,0.1);
-  z-index: 15;
+  z-index: 35;
 }
 .bottom-nav-item {
   flex: 1;
@@ -500,9 +634,16 @@ select.form-input {
 }
 
 /* ─── Grid helpers ─── */
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .grid-1-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
 
-@media (max-width: 1023px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 767px)  { .grid-3, .grid-2, .grid-1-2 { grid-template-columns: 1fr; } }
+@media (max-width: 1023px) {
+  .grid-3      { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-1-2    { grid-template-columns: 1fr; }
+}
+@media (max-width: 767px) {
+  .grid-3,
+  .grid-2,
+  .grid-1-2 { grid-template-columns: 1fr; }
+}
