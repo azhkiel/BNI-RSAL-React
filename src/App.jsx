@@ -26,34 +26,51 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Close sidebar when clicking outside on mobile
+  const handleNavigate = (newPage) => {
+    setPage(newPage);
+    setSidebar(false);
+  };
 
   return (
+    /*
+      .page-bg uses flex-direction: row.
+      Sidebar is position:fixed (doesn't take up flow space).
+      .main-wrapper has margin-left: var(--sidebar-w) on desktop
+      to push content past the fixed sidebar.
+      On mobile (≤1023px) margin-left resets to 0 and
+      sidebar slides in as an overlay.
+    */
     <div className="page-bg">
       <Sidebar
         page={page}
-        onNavigate={setPage}
+        onNavigate={handleNavigate}
         isOpen={sidebarOpen}
         onClose={() => setSidebar(false)}
       />
 
+      {/* Everything to the right of the sidebar */}
       <div className="main-wrapper">
         <Topbar
           page={page}
-          onNavigate={setPage}
+          onNavigate={handleNavigate}
           onOpenSidebar={() => setSidebar(true)}
         />
 
-        {page === "dashboard" ? (
-          <Dashboard data={data} loading={loading} onNavigate={setPage} />
-        ) : (
-          <Crud data={data} loading={loading} onRefresh={loadData} />
-        )}
+        {/* Page content */}
+        <main style={{ flex: "1 1 auto", minWidth: 0, overflowX: "hidden" }}>
+          {page === "dashboard" ? (
+            <Dashboard data={data} loading={loading} onNavigate={handleNavigate} />
+          ) : (
+            <Crud data={data} loading={loading} onRefresh={loadData} />
+          )}
+        </main>
       </div>
 
-      <BottomNav page={page} onNavigate={setPage} />
+      {/* Mobile bottom navigation */}
+      <BottomNav page={page} onNavigate={handleNavigate} />
     </div>
   );
 }

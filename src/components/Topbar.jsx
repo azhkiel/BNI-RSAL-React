@@ -1,3 +1,4 @@
+import { CalendarDays } from "lucide-react";
 export default function Topbar({ page, onNavigate, onOpenSidebar }) {
   const dateStr = new Date().toLocaleDateString("id-ID", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -29,8 +30,7 @@ export default function Topbar({ page, onNavigate, onOpenSidebar }) {
             background: "#f9fafb", border: "1px solid #f1f5f9",
             borderRadius: 10, padding: "8px 12px",
           }}
-        >
-          📅 {dateStr}
+        >{dateStr}
         </div>
 
         {page === "dashboard" ? (
